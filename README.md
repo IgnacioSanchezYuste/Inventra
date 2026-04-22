@@ -87,28 +87,24 @@ Mobile-first con sidebar colapsable, tablas con scroll horizontal, modales con a
 
 ## 🖼️ Capturas de pantalla
 
-> 📁 Crea la carpeta **`docs/screenshots/`** en la raíz del proyecto y mete dentro las siguientes imágenes con el **nombre exacto** indicado.
 
 ### 1. Dashboard
 <p align="center">
   <img src="docs/screenshots/dashboard.png" alt="Dashboard" width="100%" />
 </p>
 
-> 📷 `docs/screenshots/dashboard.png` — Captura entera de la página `/dashboard` con datos cargados (KPIs, line chart de actividad, top productos, stock bajo, feed de actividad). **Tamaño: 1440×900.**
 
 ### 2. Productos (modo tarjetas)
 <p align="center">
   <img src="docs/screenshots/products-cards.png" alt="Productos en tarjetas" width="100%" />
 </p>
 
-> 📷 `docs/screenshots/products-cards.png` — Vista `/products` en modo cards con varios productos, mini-stats arriba y pills de categoría visibles. **1440×900.**
 
 ### 3. Productos (modo tabla) + modal de creación
 <p align="center">
   <img src="docs/screenshots/product-modal.png" alt="Modal de producto" width="100%" />
 </p>
 
-> 📷 `docs/screenshots/product-modal.png` — Modal "Nuevo producto" abierto encima de la tabla, mostrando todos los campos. **1440×900.**
 
 
 ### 5. Analítica
@@ -116,14 +112,12 @@ Mobile-first con sidebar colapsable, tablas con scroll horizontal, modales con a
   <img src="docs/screenshots/analytics.png" alt="Analítica" width="100%" />
 </p>
 
-> 📷 `docs/screenshots/analytics.png` — `/analytics` mostrando los 4 KPIs y los charts (line, doughnut, bar). **1440×900.**
 
 ### 6. Empresa (gestión de equipo)
 <p align="center">
   <img src="docs/screenshots/company.png" alt="Gestión de empresa" width="100%" />
 </p>
 
-> 📷 `docs/screenshots/company.png` — `/company` con el card de empresa, formulario de invitación, miembros del equipo e invitaciones pendientes. **1440×900.**
 
 ### 7. Login + Registro (mosaico)
 <p align="center">
@@ -131,24 +125,20 @@ Mobile-first con sidebar colapsable, tablas con scroll horizontal, modales con a
   <img src="docs/screenshots/auth-register.png" alt="Registro" width="48%" />
 </p>
 
-> 📷 `docs/screenshots/auth-login.png` y `docs/screenshots/auth-register.png` — pantallas de auth. La de registro debe mostrar las tarjetas de elección de rol. **800×900 cada una.**
 
 ### 8. Onboarding (esperando invitación)
 <p align="center">
   <img src="docs/screenshots/onboarding.png" alt="Onboarding" width="60%" />
 </p>
 
-> 📷 `docs/screenshots/onboarding.png` — pantalla `/onboarding` para usuarios sin empresa. **900×900.**
 
 ### 9. Vista responsive (móvil)
 <p align="center">
   <img src="docs/screenshots/mobile-dashboard.png" alt="Mobile Dashboard" width="24%" />
   <img src="docs/screenshots/mobile-products.png" alt="Mobile Products" width="24%" />
-  <img src="docs/screenshots/mobile-pos.png" alt="Mobile POS" width="24%" />
-  <img src="docs/screenshots/mobile-menu.png" alt="Mobile Menu" width="24%" />
 </p>
 
-> 📷 Cuatro capturas en formato móvil (375×812 estilo iPhone). Una por cada vista clave + el sidebar abierto.
+
 
 ---
 
