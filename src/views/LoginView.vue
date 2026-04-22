@@ -13,7 +13,8 @@ const password = ref('')
 async function submit() {
   if (await auth.login(email.value.trim(), password.value)) {
     const r = (route.query.r as string) || '/dashboard'
-    router.push(r)
+    const safe = r.startsWith('/') && !r.startsWith('/login') && !r.startsWith('/register') ? r : '/dashboard'
+    router.push(safe)
   }
 }
 </script>

@@ -5,6 +5,8 @@ export interface User {
   name: string
   email?: string
   role: Role
+  company_id: number | null
+  company_name: string | null
 }
 
 export interface JwtPayload {
@@ -12,12 +14,41 @@ export interface JwtPayload {
   name: string
   email: string
   role: Role
+  company_id: number | null
+  company_name: string | null
   iat: number
   exp: number
 }
 
+export interface Company {
+  id: number
+  name: string
+  created_at: string
+  admin_id: number
+  admin_name: string
+  admin_email: string
+}
+
+export interface Member {
+  id: number
+  name: string
+  email: string
+  role: Role
+  created_at: string
+}
+
+export interface Invitation {
+  id: number
+  email: string
+  role: 'manager' | 'user'
+  status: 'pending' | 'accepted' | 'revoked'
+  created_at: string
+  accepted_at: string | null
+}
+
 export interface Product {
   id: number
+  company_id?: number
   user_id?: number
   owner_name?: string | null
   name: string
@@ -39,6 +70,7 @@ export interface Sale {
   total_price: number | string
   created_at?: string
   product_name?: string
+  seller_name?: string
 }
 
 export interface AnalyticsSummary {

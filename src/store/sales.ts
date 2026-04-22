@@ -2,39 +2,39 @@ import { defineStore } from 'pinia'
 import { salesApi } from '../api/sales'
 import { useProductsStore } from './products'
 import { useAnalyticsStore } from './analytics'
+import { apiError } from '../api/http'
 import type { Sale } from '../api/types'
 
-interface LocalSale extends Sale {
-  product_name: string
-  created_at: string
-}
-
 interface State {
-  recent: LocalSale[]
+  items: Sale[]
+  loaded: boolean
   loading: boolean
   error: string | null
 }
 
-const KEY = 'inventra_sales_local'
-
-function loadLocal(): LocalSale[] {
-  try { return JSON.parse(localStorage.getItem(KEY) || '[]') } catch { return [] }
-}
-
 export const useSalesStore = defineStore('sales', {
-  state: (): State => ({ recent: loadLocal(), loading: false, error: null }),
+  state: (): State => ({ items: [], loaded: false, loading: false, error: null }),
   getters: {
-    byProduct: (s) => (pid: number | null) =>
-      pid ? s.recent.filter(x => x.product_id === pid) : s.recent
+    recent: (s) => s.items,
+    byProduct: (s) => (pid: number | null) => pid ? s.items.filter(x => x.product_id === pid) : s.items
   },
   actions: {
+    async fetchAll(force = false) {
+      if (this.loaded && !force) return
+      this.loading = true; this.error = null
+      try {
+        this.items = await salesApi.list()
+        this.loaded = true
+      } catch (e) { this.error = apiError(e) }
+      finally { this.loading = false }
+    },
     async create(product_id: number, quantity: number) {
       this.loading = true; this.error = null
       try {
         const products = useProductsStore()
         const p = products.byId(product_id)
         const r = await salesApi.create(product_id, quantity)
-        const sale: LocalSale = {
+        const sale: Sale = {
           id: r.sale_id,
           product_id,
           user_id: 0,
@@ -42,21 +42,17 @@ export const useSalesStore = defineStore('sales', {
           unit_price: p ? Number(p.price) : 0,
           total_price: r.total_price,
           product_name: p?.name || `#${product_id}`,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString().replace('T', ' ').slice(0, 19)
         }
-        this.recent = [sale, ...this.recent].slice(0, 200)
-        localStorage.setItem(KEY, JSON.stringify(this.recent))
+        this.items = [sale, ...this.items]
         products.decrementStockLocal(product_id, quantity)
         useAnalyticsStore().refresh().catch(() => {})
         return sale
       } catch (e: any) {
-        this.error = e?.response?.data?.message || 'No se pudo registrar la venta'
+        this.error = apiError(e)
         throw e
       } finally { this.loading = false }
     },
-    clear() {
-      this.recent = []
-      localStorage.removeItem(KEY)
-    }
+    clear() { this.items = []; this.loaded = false }
   }
 })

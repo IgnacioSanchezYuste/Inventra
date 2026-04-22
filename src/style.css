@@ -136,10 +136,13 @@ label {
   background: var(--surface);
   border-radius: var(--radius-lg);
   width: 100%; max-width: 480px;
+  max-height: calc(100vh - 32px);
+  display: flex; flex-direction: column;
   box-shadow: var(--shadow-lg);
   overflow: hidden;
   animation: pop .18s ease-out;
 }
+.modal-body { overflow-y: auto; }
 .modal-head {
   display: flex; justify-content: space-between; align-items: center;
   padding: 18px 22px; border-bottom: 1px solid var(--border);
@@ -219,5 +222,23 @@ tbody tr:hover { background: var(--surface-2); }
 
 .grid-cards {
   display: grid; gap: 16px;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+/* Scroll horizontal en tablas anchas */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-wrap table { min-width: 540px; }
+
+/* Mobile tweaks globales */
+@media (max-width: 600px) {
+  :root { font-size: 13.5px; }
+  .modal-head, .modal-body, .modal-foot { padding-left: 16px; padding-right: 16px; }
+  .modal-foot { flex-wrap: wrap; }
+  .modal-foot button { flex: 1 1 auto; }
+  th, td { padding: 10px 10px; font-size: 13px; }
+  .grid-cards { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+  .page-head { margin-bottom: 16px; }
+  .page-head h1 { font-size: 19px; }
+  .toast { min-width: 200px; max-width: 90vw; }
+  .toast-stack { right: 10px; bottom: 10px; left: 10px; }
 }
