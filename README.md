@@ -26,7 +26,6 @@
   <img src="docs/screenshots/dashboard-hero.png" alt="Dashboard Inventra" width="100%" />
 </p>
 
-> 📷 **Captura sugerida:** vista completa del Dashboard con hero, KPIs gradient, gráfica de actividad y panel lateral. Tamaño recomendado: **1600×900**.
 
 ---
 
