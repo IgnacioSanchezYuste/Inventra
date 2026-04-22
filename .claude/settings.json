@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git filter-repo *)",
+      "Bash(git filter-branch *)",
+      "Bash(cp backend/Conexion.php /tmp/Conexion.php.backup)",
+      "Read(//tmp/**)",
+      "Bash(FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch --force --index-filter \"git rm --cached --ignore-unmatch backend/Conexion.php\" --prune-empty --tag-name-filter cat -- --all)",
+      "Bash(git stash *)",
+      "Bash(rm -rf .git/refs/original/)",
+      "Bash(git reflog *)",
+      "Bash(git gc *)",
+      "Bash(git fsck *)",
+      "Bash(git update-ref *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git check-ignore *)"
+    ],
+    "additionalDirectories": [
+      "\\tmp"
+    ]
+  }
+}
