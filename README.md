@@ -110,12 +110,6 @@ Mobile-first con sidebar colapsable, tablas con scroll horizontal, modales con a
 
 > 📷 `docs/screenshots/product-modal.png` — Modal "Nuevo producto" abierto encima de la tabla, mostrando todos los campos. **1440×900.**
 
-### 4. Punto de venta (POS)
-<p align="center">
-  <img src="docs/screenshots/sales-pos.png" alt="POS" width="100%" />
-</p>
-
-> 📷 `docs/screenshots/sales-pos.png` — `/sales` con grid de productos a la izquierda y carrito a la derecha con varias líneas. **1440×900.**
 
 ### 5. Analítica
 <p align="center">
