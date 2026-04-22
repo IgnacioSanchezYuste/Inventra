@@ -16,7 +16,7 @@
 
 **Diseño moderno · Aislamiento por empresa · Auto-refresh · Responsive**
 
-[Demo en vivo](https://ignaciosanchezyuste.es) · [API](https://ignaciosanchezyuste.es/API_Inventra) · [Reportar issue](https://github.com/)
+[Demo en vivo](https://ignaciosanchezyuste.es/Inventra) · [API](https://ignaciosanchezyuste.es/API_Inventra) · [Reportar issue](https://github.com/)
 
 </div>
 
