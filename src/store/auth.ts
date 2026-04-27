@@ -7,6 +7,7 @@ import { useProductsStore } from './products'
 import { useSalesStore } from './sales'
 import { useAnalyticsStore } from './analytics'
 import { useCompanyStore } from './company'
+import { useExpensesStore } from './expenses'
 
 const KEY_TOKEN = 'inventra_token'
 const KEY_USER = 'inventra_user'
@@ -26,6 +27,7 @@ function resetAppData() {
   useSalesStore().$reset()
   useAnalyticsStore().$reset()
   useCompanyStore().$reset()
+  useExpensesStore().$reset()
 }
 
 export const useAuthStore = defineStore('auth', {

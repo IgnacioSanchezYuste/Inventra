@@ -73,9 +73,32 @@ export interface Sale {
   seller_name?: string
 }
 
+export interface Expense {
+  id: number
+  company_id?: number
+  user_id?: number
+  user_name?: string | null
+  category: string | null
+  description: string
+  amount: number | string
+  expense_date: string
+  created_at?: string
+  updated_at?: string
+}
+
+export interface ExpenseCategoryTotal {
+  category: string
+  total: number | string
+}
+
 export interface AnalyticsSummary {
   total_revenue: number
   total_profit: number
+  total_expenses: number
+  expenses_this_month: number
+  total_expense_entries: number
+  net_profit: number
   total_sales: number
+  expenses_by_category: ExpenseCategoryTotal[]
   low_stock_products: { id: number; name: string; stock: number }[]
 }

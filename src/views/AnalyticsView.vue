@@ -8,6 +8,7 @@ import {
 import { useAnalyticsStore } from '../store/analytics'
 import { useProductsStore } from '../store/products'
 import { useSalesStore } from '../store/sales'
+import { useExpensesStore } from '../store/expenses'
 import { money, num } from '../utils/format'
 import { dailyBuckets, topProducts } from '../utils/series'
 import { useAutoRefresh } from '../utils/useAutoRefresh'
@@ -18,35 +19,109 @@ Chart.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarEleme
 const analytics = useAnalyticsStore()
 const products = useProductsStore()
 const sales = useSalesStore()
+const expenses = useExpensesStore()
 
-function refreshAll() { analytics.refresh(); products.fetchAll(true); sales.fetchAll(true) }
+function refreshAll() { analytics.refresh(); products.fetchAll(true); sales.fetchAll(true); expenses.fetchAll(true) }
 onMounted(refreshAll)
 useAutoRefresh(refreshAll, 20000)
 
-const margin = computed(() => {
+const grossMargin = computed(() => {
   const rev = num(analytics.summary?.total_revenue)
   const prof = num(analytics.summary?.total_profit)
   if (!rev) return 0
   return Math.round((prof / rev) * 1000) / 10
 })
 
+const netMargin = computed(() => {
+  const rev = num(analytics.summary?.total_revenue)
+  const net = num(analytics.summary?.net_profit)
+  if (!rev) return 0
+  return Math.round((net / rev) * 1000) / 10
+})
+
+const totalExpenses = computed(() => num(analytics.summary?.total_expenses ?? expenses.total))
+const expensesThisMonth = computed(() => num(analytics.summary?.expenses_this_month ?? 0))
+const netProfit = computed(() => num(
+  analytics.summary?.net_profit
+  ?? (num(analytics.summary?.total_profit) - totalExpenses.value)
+))
+
 const series = computed(() => dailyBuckets(sales.recent, 14))
 const top = computed(() => topProducts(sales.recent, 6))
 
+// Serie diaria de gastos (mismos 14 días)
+const expensesDaily = computed(() => {
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const out: number[] = []
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(today); d.setDate(today.getDate() - i)
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+    let acc = 0
+    for (const e of expenses.items) {
+      if ((e.expense_date || '').slice(0, 10) === key) acc += num(e.amount)
+    }
+    out.push(Math.round(acc * 100) / 100)
+  }
+  return out
+})
+
 const profitabilityData = computed(() => {
   const rev = num(analytics.summary?.total_revenue)
-  const prof = num(analytics.summary?.total_profit)
-  const cost = Math.max(0, rev - prof)
+  const grossProfit = num(analytics.summary?.total_profit)
+  const productCost = Math.max(0, rev - grossProfit)
+  const expVal = totalExpenses.value
+  const net = Math.max(0, grossProfit - expVal)
   return {
-    labels: ['Beneficio', 'Coste'],
+    labels: ['Beneficio neto', 'Coste de productos', 'Gastos operativos'],
     datasets: [{
-      data: [prof, cost],
-      backgroundColor: ['#10b981', '#e5e7eb'],
+      data: [net, productCost, expVal],
+      backgroundColor: ['#10b981', '#e5e7eb', '#ef4444'],
       borderWidth: 0,
       borderRadius: 4
     }]
   }
 })
+
+// Categorías de gasto (del backend si está, si no del store)
+const expensesCategoryData = computed(() => {
+  const fromBackend = analytics.summary?.expenses_by_category || []
+  const list = (fromBackend.length
+    ? fromBackend.map(c => ({ category: c.category, total: num(c.total) }))
+    : expenses.byCategory
+  ).slice(0, 8)
+  return {
+    labels: list.map(c => c.category),
+    datasets: [{
+      data: list.map(c => c.total),
+      backgroundColor: ['#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', '#06b6d4', '#8b5cf6', '#ec4899'],
+      borderWidth: 0
+    }]
+  }
+})
+
+const flowData = computed(() => ({
+  labels: series.value.labels,
+  datasets: [
+    {
+      label: 'Ingresos',
+      data: series.value.revenue,
+      borderColor: '#4f46e5',
+      backgroundColor: 'rgba(79,70,229,0.12)',
+      fill: true,
+      tension: 0.35,
+      pointRadius: 2
+    },
+    {
+      label: 'Gastos',
+      data: expensesDaily.value,
+      borderColor: '#ef4444',
+      backgroundColor: 'rgba(239,68,68,0.12)',
+      fill: true,
+      tension: 0.35,
+      pointRadius: 2
+    }
+  ]
+}))
 
 const lineData = computed(() => ({
   labels: series.value.labels,
@@ -128,6 +203,10 @@ const donutOpts = {
   cutout: '65%',
   plugins: { ...baseOpts.plugins, legend: { display: true, position: 'bottom' as const, labels: { boxWidth: 10, font: { size: 11 } } } }
 }
+const lineMultiOpts = {
+  ...lineOpts,
+  plugins: { ...baseOpts.plugins, legend: { display: true, position: 'bottom' as const, labels: { boxWidth: 10, font: { size: 11 } } } }
+}
 </script>
 
 <template>
@@ -148,9 +227,19 @@ const donutOpts = {
       <div class="delta"><span class="badge brand">Total acumulado</span></div>
     </div>
     <div class="card kpi">
-      <div class="row" style="gap:10px;"><Icon name="trend_up" :size="18" style="color: #059669" /><span class="label">Beneficio</span></div>
+      <div class="row" style="gap:10px;"><Icon name="trend_up" :size="18" style="color: #059669" /><span class="label">Beneficio bruto</span></div>
       <div class="value">{{ money(analytics.summary?.total_profit ?? 0) }}</div>
-      <div class="delta"><span class="badge ok">Margen {{ margin }}%</span></div>
+      <div class="delta"><span class="badge ok">Margen bruto {{ grossMargin }}%</span></div>
+    </div>
+    <div class="card kpi">
+      <div class="row" style="gap:10px;"><Icon name="wallet" :size="18" style="color: #b91c1c" /><span class="label">Gastos</span></div>
+      <div class="value">{{ money(totalExpenses) }}</div>
+      <div class="delta"><span class="badge bad" v-if="expensesThisMonth > 0">{{ money(expensesThisMonth) }} este mes</span><span v-else class="badge">Sin gastos este mes</span></div>
+    </div>
+    <div class="card kpi">
+      <div class="row" style="gap:10px;"><Icon name="receipt" :size="18" style="color: #0f766e" /><span class="label">Beneficio neto</span></div>
+      <div class="value" :style="{ color: netProfit < 0 ? '#b91c1c' : 'inherit' }">{{ money(netProfit) }}</div>
+      <div class="delta"><span class="badge" :class="netProfit < 0 ? 'bad' : 'ok'">Margen neto {{ netMargin }}%</span></div>
     </div>
     <div class="card kpi">
       <div class="row" style="gap:10px;"><Icon name="cart" :size="18" style="color: #d97706" /><span class="label">Operaciones</span></div>
@@ -182,10 +271,38 @@ const donutOpts = {
     </section>
 
     <section class="card">
-      <h3>Ingresos vs Coste</h3>
-      <p class="muted" style="font-size: 12px; margin: 2px 0 12px;">Composición global.</p>
+      <h3>Composición de ingresos</h3>
+      <p class="muted" style="font-size: 12px; margin: 2px 0 12px;">Beneficio neto vs coste vs gastos.</p>
       <div class="chart-wrap">
         <Doughnut :data="profitabilityData" :options="donutOpts" />
+      </div>
+    </section>
+
+    <section class="card span-2">
+      <div class="row" style="justify-content: space-between;">
+        <div>
+          <h3>Ingresos vs Gastos</h3>
+          <p class="muted" style="font-size: 12px; margin: 2px 0 0;">Flujo diario de los últimos 14 días.</p>
+        </div>
+      </div>
+      <div v-if="!sales.recent.length && !expenses.items.length" class="empty">
+        <Icon name="chart" :size="32" />
+        <p>Aún no hay actividad para representar.</p>
+      </div>
+      <div v-else class="chart-wrap tall">
+        <Line :data="flowData" :options="lineMultiOpts" />
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>Gastos por categoría</h3>
+      <p class="muted" style="font-size: 12px; margin: 2px 0 12px;">Distribución del gasto total.</p>
+      <div v-if="!expenses.items.length" class="empty">
+        <Icon name="wallet" :size="32" />
+        <p>Sin gastos registrados.</p>
+      </div>
+      <div v-else class="chart-wrap">
+        <Doughnut :data="expensesCategoryData" :options="donutOpts" />
       </div>
     </section>
 

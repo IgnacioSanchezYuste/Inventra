@@ -9,6 +9,7 @@ import { useAnalyticsStore } from '../store/analytics'
 import { useProductsStore } from '../store/products'
 import { useSalesStore } from '../store/sales'
 import { useAuthStore } from '../store/auth'
+import { useExpensesStore } from '../store/expenses'
 import { money, fmtDate, num } from '../utils/format'
 import { dailyBuckets, topProducts } from '../utils/series'
 import { useAutoRefresh } from '../utils/useAutoRefresh'
@@ -22,14 +23,17 @@ const analytics = useAnalyticsStore()
 const products = useProductsStore()
 const sales = useSalesStore()
 const auth = useAuthStore()
+const expenses = useExpensesStore()
 const router = useRouter()
 
 const canSeeAnalytics = computed(() => auth.canManage)
+const canSeeExpenses = computed(() => auth.canManage)
 
 function refreshAll() {
   products.fetchAll(true)
   sales.fetchAll(true)
   if (canSeeAnalytics.value) analytics.refresh()
+  if (canSeeExpenses.value) expenses.fetchAll(true)
 }
 
 onMounted(refreshAll)
@@ -49,6 +53,7 @@ const today = computed(() =>
 const series = computed(() => dailyBuckets(sales.recent, 7))
 const top = computed(() => topProducts(sales.recent, 5))
 const recentSales = computed(() => sales.recent.slice(0, 6))
+const recentExpenses = computed(() => expenses.items.slice(0, 6))
 
 // Resumen local (sales + products) — sirve a usuarios sin acceso a /analytics
 const localSummary = computed(() => {
@@ -60,15 +65,23 @@ const localSummary = computed(() => {
     revenue += num(s.total_price)
     profit += Number(s.quantity) * (num(s.unit_price) - cost)
   }
+  const totalExpenses = expenses.total
   return {
     total_revenue: revenue,
     total_profit: profit,
+    total_expenses: totalExpenses,
+    expenses_this_month: 0,
+    total_expense_entries: expenses.items.length,
+    net_profit: profit - totalExpenses,
     total_sales: sales.recent.length,
+    expenses_by_category: [],
     low_stock_products: products.lowStock.map(p => ({ id: p.id, name: p.name, stock: Number(p.stock) }))
   }
 })
 
 const summary = computed(() => analytics.summary || localSummary.value)
+const summaryExpenses = computed(() => num(summary.value.total_expenses ?? 0))
+const summaryNetProfit = computed(() => num(summary.value.net_profit ?? (num(summary.value.total_profit) - summaryExpenses.value)))
 
 const lowStockList = computed(() => summary.value.low_stock_products || [])
 const sessionRevenue = computed(() => sales.recent.reduce((a, s) => a + num(s.total_price), 0))
@@ -100,12 +113,39 @@ const profitSeries = computed(() => {
   return result
 })
 
-const kpis = computed(() => [
-  { label: 'Ingresos totales',      value: money(summary.value.total_revenue), icon: 'euro',     grad: 'g-indigo', spark: series.value.revenue },
-  { label: 'Beneficio',             value: money(summary.value.total_profit),  icon: 'trend_up', grad: 'g-green',  spark: profitSeries.value },
-  { label: 'Ventas registradas',    value: String(summary.value.total_sales),  icon: 'cart',     grad: 'g-amber',  spark: series.value.count },
-  { label: 'Productos en catálogo', value: String(products.items.length),      icon: 'package',  grad: 'g-pink',   spark: products.items.slice(-7).map(p => Number(p.stock)) }
-])
+// Serie diaria de gastos (últimos 7 días) usando expense_date
+const expensesSeries = computed(() => {
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const out: number[] = []
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today); d.setDate(today.getDate() - i)
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+    let acc = 0
+    for (const e of expenses.items) {
+      if ((e.expense_date || '').slice(0, 10) === key) acc += num(e.amount)
+    }
+    out.push(Math.round(acc * 100) / 100)
+  }
+  return out
+})
+
+const netProfitSeries = computed(() =>
+  profitSeries.value.map((p, i) => Math.round((p - (expensesSeries.value[i] || 0)) * 100) / 100)
+)
+
+const kpis = computed(() => {
+  const list: Array<{ label: string; value: string; icon: string; grad: string; spark: number[] }> = [
+    { label: 'Ingresos totales', value: money(summary.value.total_revenue), icon: 'euro',     grad: 'g-indigo', spark: series.value.revenue },
+    { label: 'Beneficio bruto',  value: money(summary.value.total_profit),  icon: 'trend_up', grad: 'g-green',  spark: profitSeries.value }
+  ]
+  if (canSeeExpenses.value) {
+    list.push({ label: 'Gastos',         value: money(summaryExpenses.value),  icon: 'wallet',   grad: 'g-red',  spark: expensesSeries.value })
+    list.push({ label: 'Beneficio neto', value: money(summaryNetProfit.value), icon: 'receipt',  grad: 'g-teal', spark: netProfitSeries.value })
+  }
+  list.push({ label: 'Ventas registradas',    value: String(summary.value.total_sales), icon: 'cart',    grad: 'g-amber', spark: series.value.count })
+  list.push({ label: 'Productos en catálogo', value: String(products.items.length),     icon: 'package', grad: 'g-pink',  spark: products.items.slice(-7).map(p => Number(p.stock)) })
+  return list
+})
 
 const lineData = computed(() => ({
   labels: series.value.labels,
@@ -223,6 +263,11 @@ const lineOpts = {
         <div class="qt"><strong>Añadir producto</strong><span class="muted">Amplia tu catálogo</span></div>
         <Icon name="chevron_right" class="qa" />
       </button>
+      <button v-if="canSeeExpenses" class="quick" @click="router.push('/expenses')">
+        <div class="qi g-red"><Icon name="wallet" /></div>
+        <div class="qt"><strong>Registrar gasto</strong><span class="muted">Alquiler, suministros, salarios…</span></div>
+        <Icon name="chevron_right" class="qa" />
+      </button>
       <button v-if="canSeeAnalytics" class="quick" @click="router.push('/analytics')">
         <div class="qi g-amber"><Icon name="chart" /></div>
         <div class="qt"><strong>Ver analítica</strong><span class="muted">Indicadores y tendencias</span></div>
@@ -303,6 +348,37 @@ const lineOpts = {
         </li>
       </ul>
     </section>
+
+    <section v-if="canSeeExpenses" class="card panel-expenses">
+      <div class="panel-head">
+        <div>
+          <h3>Gastos recientes</h3>
+          <p class="muted">Últimos movimientos registrados</p>
+        </div>
+        <RouterLink to="/expenses" class="link">
+          Ver todos <Icon name="arrow_right" :size="14" />
+        </RouterLink>
+      </div>
+      <div v-if="!recentExpenses.length" class="empty small">
+        <Icon name="wallet" :size="28" />
+        <p style="margin-top: 6px;">Aún no se han registrado gastos.</p>
+        <button class="subtle" @click="router.push('/expenses')" style="margin-top: 8px;">
+          <Icon name="plus" /> Añadir gasto
+        </button>
+      </div>
+      <ul v-else class="feed">
+        <li v-for="e in recentExpenses" :key="e.id">
+          <div class="fb fb-red"><Icon name="wallet" :size="14" /></div>
+          <div class="grow">
+            <div><strong>{{ e.description }}</strong></div>
+            <div class="muted" style="font-size: 12px;">
+              {{ fmtDate(e.expense_date) }}<span v-if="e.category"> · {{ e.category }}</span><span v-if="e.user_name"> · {{ e.user_name }}</span>
+            </div>
+          </div>
+          <strong class="expense-text">−{{ money(e.amount) }}</strong>
+        </li>
+      </ul>
+    </section>
   </div>
 </template>
 
@@ -364,6 +440,8 @@ const lineOpts = {
 .kpi-card.g-green  { --g: linear-gradient(135deg, #10b981, #059669); color: #059669; }
 .kpi-card.g-amber  { --g: linear-gradient(135deg, #f59e0b, #d97706); color: #d97706; }
 .kpi-card.g-pink   { --g: linear-gradient(135deg, #ec4899, #db2777); color: #db2777; }
+.kpi-card.g-red    { --g: linear-gradient(135deg, #f87171, #b91c1c); color: #b91c1c; }
+.kpi-card.g-teal   { --g: linear-gradient(135deg, #14b8a6, #0f766e); color: #0f766e; }
 
 .kpi-head { display: flex; align-items: center; gap: 10px; }
 .kpi-ico {
@@ -387,10 +465,11 @@ const lineOpts = {
 .panel-recent { grid-column: 1 / 2; }
 .panel-low { grid-column: 1 / 3; }
 .panel-feed { grid-column: 1 / 3; }
+.panel-expenses { grid-column: 1 / 3; }
 
 @media (max-width: 980px) {
   .dash-grid { grid-template-columns: 1fr; }
-  .panel-chart, .panel-quick, .panel-recent, .panel-low, .panel-feed { grid-column: auto; grid-row: auto; }
+  .panel-chart, .panel-quick, .panel-recent, .panel-low, .panel-feed, .panel-expenses { grid-column: auto; grid-row: auto; }
 }
 
 .panel-head {
@@ -431,6 +510,8 @@ const lineOpts = {
 .qi.g-green  { background: linear-gradient(135deg, #10b981, #059669); }
 .qi.g-amber  { background: linear-gradient(135deg, #f59e0b, #d97706); }
 .qi.g-pink   { background: linear-gradient(135deg, #ec4899, #db2777); }
+.qi.g-red    { background: linear-gradient(135deg, #f87171, #b91c1c); }
+.qi.g-teal   { background: linear-gradient(135deg, #14b8a6, #0f766e); }
 .qt { display: flex; flex-direction: column; gap: 2px; flex: 1; }
 .qt strong { font-size: 13px; font-weight: 600; }
 .qt span { font-size: 12px; }
@@ -477,6 +558,10 @@ const lineOpts = {
   display: grid; place-items: center;
 }
 .brand-text { color: var(--primary); }
+.expense-text { color: #b91c1c; }
+.fb.fb-red {
+  background: var(--danger-soft); color: #b91c1c;
+}
 
 .link { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; }
 </style>

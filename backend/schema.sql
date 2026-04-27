@@ -113,4 +113,27 @@ CREATE TABLE sales (
     INDEX idx_created (created_at)
 );
 
+-- ------------------------------------------------------------
+-- 6) EXPENSES
+-- Gastos de la EMPRESA (alquiler, salarios, suministros, etc.)
+-- Solo admin/manager pueden crear/editar (regla en el backend).
+-- expense_date = fecha real del gasto (independiente de created_at).
+-- ------------------------------------------------------------
+CREATE TABLE expenses (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    company_id INT NOT NULL,
+    user_id INT NOT NULL,
+    category VARCHAR(100) NULL,
+    description VARCHAR(255) NOT NULL,
+    amount DECIMAL(10,2) NOT NULL CHECK (amount >= 0),
+    expense_date DATE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
+    INDEX idx_company (company_id),
+    INDEX idx_date (expense_date),
+    INDEX idx_category (category)
+);
+
 SHOW TABLES;

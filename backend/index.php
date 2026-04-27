@@ -206,6 +206,10 @@ $app->get('/', function (Request $request, Response $response) {
             'DELETE /products/{id}           (admin)',
             'POST /sales                     (cualquier rol con empresa)',
             'GET  /sales                     (cualquier rol con empresa)',
+            'GET  /expenses                  (admin/manager)',
+            'POST /expenses                  (admin/manager) {description,amount,expense_date,category?}',
+            'PUT  /expenses/{id}             (admin/manager)',
+            'DELETE /expenses/{id}           (admin)',
             'GET  /analytics/summary         (admin/manager)'
         ]
     ]);
@@ -571,6 +575,132 @@ $app->group('', function (RouteCollectorProxy $group) use ($conn) {
         ], 201);
     })->add(requireCompany());
 
+    // ------ EXPENSES (gastos de la empresa) ------
+    // Solo admin/manager pueden listar, crear y editar.
+    // Solo admin puede borrar.
+    $group->get('/expenses', function (Request $request, Response $response) use ($conn) {
+        $jwt = $request->getAttribute('user');
+        $stmt = $conn->prepare("
+            SELECT e.id, e.company_id, e.user_id, e.category, e.description,
+                   e.amount, e.expense_date, e.created_at, e.updated_at,
+                   u.name AS user_name
+            FROM expenses e
+            LEFT JOIN users u ON e.user_id = u.id
+            WHERE e.company_id = :cid
+            ORDER BY e.expense_date DESC, e.id DESC
+            LIMIT 1000
+        ");
+        $stmt->execute([':cid' => $jwt['company_id']]);
+        return jsonResponse($response, ['expenses' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+    })->add(requireRole(['admin','manager']))->add(requireCompany());
+
+    $group->post('/expenses', function (Request $request, Response $response) use ($conn) {
+        $jwt  = $request->getAttribute('user');
+        $data = $request->getParsedBody() ?? [];
+        $description = trim((string)($data['description'] ?? ''));
+        $amount      = isset($data['amount']) ? (float)$data['amount'] : -1;
+        $expDate     = trim((string)($data['expense_date'] ?? ''));
+        $category    = isset($data['category']) ? trim((string)$data['category']) : null;
+
+        if ($description === '') return jsonResponse($response, ['error'=>true,'message'=>'La descripción es obligatoria'], 400);
+        if ($amount < 0)          return jsonResponse($response, ['error'=>true,'message'=>'El importe debe ser >= 0'], 400);
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $expDate)) {
+            return jsonResponse($response, ['error'=>true,'message'=>'Fecha inválida (YYYY-MM-DD)'], 400);
+        }
+        if ($category === '') $category = null;
+
+        $stmt = $conn->prepare("
+            INSERT INTO expenses (company_id, user_id, category, description, amount, expense_date)
+            VALUES (:cid, :uid, :cat, :desc, :amt, :ed)
+        ");
+        $stmt->execute([
+            ':cid'  => $jwt['company_id'],
+            ':uid'  => $jwt['user_id'],
+            ':cat'  => $category,
+            ':desc' => $description,
+            ':amt'  => $amount,
+            ':ed'   => $expDate
+        ]);
+        $id = (int)$conn->lastInsertId();
+
+        $sel = $conn->prepare("
+            SELECT e.id, e.company_id, e.user_id, e.category, e.description,
+                   e.amount, e.expense_date, e.created_at, e.updated_at,
+                   u.name AS user_name
+            FROM expenses e LEFT JOIN users u ON e.user_id = u.id
+            WHERE e.id = :id LIMIT 1
+        ");
+        $sel->execute([':id' => $id]);
+        return jsonResponse($response, [
+            'success' => true,
+            'expense' => $sel->fetch(PDO::FETCH_ASSOC)
+        ], 201);
+    })->add(requireRole(['admin','manager']))->add(requireCompany());
+
+    $group->put('/expenses/{id}', function (Request $request, Response $response, array $args) use ($conn) {
+        $jwt = $request->getAttribute('user');
+        $id  = (int)$args['id'];
+
+        $check = $conn->prepare("SELECT id FROM expenses WHERE id = :id AND company_id = :cid");
+        $check->execute([':id'=>$id, ':cid'=>$jwt['company_id']]);
+        if (!$check->fetch()) return jsonResponse($response, ['error'=>true,'message'=>'Gasto no existe en tu empresa'], 404);
+
+        $data = $request->getParsedBody() ?? [];
+        $fields = []; $params = [':id'=>$id];
+
+        if (array_key_exists('description', $data)) {
+            $desc = trim((string)$data['description']);
+            if ($desc === '') return jsonResponse($response, ['error'=>true,'message'=>'Descripción no puede estar vacía'], 400);
+            $fields[] = 'description = :description';
+            $params[':description'] = $desc;
+        }
+        if (array_key_exists('amount', $data)) {
+            $amt = (float)$data['amount'];
+            if ($amt < 0) return jsonResponse($response, ['error'=>true,'message'=>'Importe inválido'], 400);
+            $fields[] = 'amount = :amount';
+            $params[':amount'] = $amt;
+        }
+        if (array_key_exists('expense_date', $data)) {
+            $ed = trim((string)$data['expense_date']);
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $ed)) {
+                return jsonResponse($response, ['error'=>true,'message'=>'Fecha inválida (YYYY-MM-DD)'], 400);
+            }
+            $fields[] = 'expense_date = :expense_date';
+            $params[':expense_date'] = $ed;
+        }
+        if (array_key_exists('category', $data)) {
+            $cat = trim((string)$data['category']);
+            $fields[] = 'category = :category';
+            $params[':category'] = $cat === '' ? null : $cat;
+        }
+
+        if (!$fields) return jsonResponse($response, ['error'=>true,'message'=>'Sin datos para actualizar'], 400);
+
+        $stmt = $conn->prepare("UPDATE expenses SET ".implode(', ', $fields)." WHERE id = :id");
+        $stmt->execute($params);
+
+        $sel = $conn->prepare("
+            SELECT e.id, e.company_id, e.user_id, e.category, e.description,
+                   e.amount, e.expense_date, e.created_at, e.updated_at,
+                   u.name AS user_name
+            FROM expenses e LEFT JOIN users u ON e.user_id = u.id
+            WHERE e.id = :id LIMIT 1
+        ");
+        $sel->execute([':id' => $id]);
+        return jsonResponse($response, [
+            'success' => true,
+            'expense' => $sel->fetch(PDO::FETCH_ASSOC)
+        ]);
+    })->add(requireRole(['admin','manager']))->add(requireCompany());
+
+    $group->delete('/expenses/{id}', function (Request $request, Response $response, array $args) use ($conn) {
+        $jwt = $request->getAttribute('user');
+        $stmt = $conn->prepare("DELETE FROM expenses WHERE id = :id AND company_id = :cid");
+        $stmt->execute([':id'=>(int)$args['id'], ':cid'=>$jwt['company_id']]);
+        if ($stmt->rowCount() === 0) return jsonResponse($response, ['error'=>true,'message'=>'No existe'], 404);
+        return jsonResponse($response, ['success'=>true]);
+    })->add(requireRole(['admin']))->add(requireCompany());
+
     // ------ ANALYTICS ------
     $group->get('/analytics/summary', function (Request $request, Response $response) use ($conn) {
         $jwt = $request->getAttribute('user');
@@ -589,6 +719,27 @@ $app->group('', function (RouteCollectorProxy $group) use ($conn) {
         $c->execute([':c'=>$cid]);
         $count = $c->fetch(PDO::FETCH_ASSOC);
 
+        $ex = $conn->prepare("
+            SELECT
+                COALESCE(SUM(amount), 0)             AS total_expenses,
+                COUNT(*)                              AS total_expense_entries,
+                COALESCE(SUM(CASE WHEN expense_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01') THEN amount ELSE 0 END), 0) AS expenses_month
+            FROM expenses WHERE company_id = :c
+        ");
+        $ex->execute([':c'=>$cid]);
+        $exTotals = $ex->fetch(PDO::FETCH_ASSOC) ?: ['total_expenses'=>0,'total_expense_entries'=>0,'expenses_month'=>0];
+
+        // Gastos por categoría (top)
+        $catStmt = $conn->prepare("
+            SELECT COALESCE(NULLIF(category,''), 'Sin categoría') AS category,
+                   SUM(amount) AS total
+            FROM expenses WHERE company_id = :c
+            GROUP BY category
+            ORDER BY total DESC
+            LIMIT 12
+        ");
+        $catStmt->execute([':c'=>$cid]);
+
         $low = $conn->prepare("
             SELECT id, name, stock FROM products
             WHERE company_id = :c AND stock < 5
@@ -596,11 +747,20 @@ $app->group('', function (RouteCollectorProxy $group) use ($conn) {
         ");
         $low->execute([':c'=>$cid]);
 
+        $grossProfit = (float)($totals['profit'] ?? 0);
+        $totalExpenses = (float)($exTotals['total_expenses'] ?? 0);
+        $netProfit = $grossProfit - $totalExpenses;
+
         return jsonResponse($response, [
-            'total_revenue'      => (float)($totals['revenue'] ?? 0),
-            'total_profit'       => (float)($totals['profit'] ?? 0),
-            'total_sales'        => (int)($count['total_sales'] ?? 0),
-            'low_stock_products' => $low->fetchAll(PDO::FETCH_ASSOC)
+            'total_revenue'         => (float)($totals['revenue'] ?? 0),
+            'total_profit'          => $grossProfit,           // beneficio bruto (revenue - cost)
+            'total_expenses'        => $totalExpenses,
+            'expenses_this_month'   => (float)($exTotals['expenses_month'] ?? 0),
+            'total_expense_entries' => (int)($exTotals['total_expense_entries'] ?? 0),
+            'net_profit'            => $netProfit,             // beneficio neto (bruto - gastos)
+            'total_sales'           => (int)($count['total_sales'] ?? 0),
+            'expenses_by_category'  => $catStmt->fetchAll(PDO::FETCH_ASSOC),
+            'low_stock_products'    => $low->fetchAll(PDO::FETCH_ASSOC)
         ]);
     })->add(requireRole(['admin','manager']))->add(requireCompany());
 

@@ -28,7 +28,11 @@ const paths: Record<string, string> = {
   grid: 'M3 3h7v7H3V3zm11 0h7v7h-7V3zm0 11h7v7h-7v-7zm-11 0h7v7H3v-7z',
   list: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
   dot: 'M12 12m-3 0a3 3 0 1 0 6 0 3 3 0 1 0-6 0',
-  arrow_right: 'M5 12h14M12 5l7 7-7 7'
+  arrow_right: 'M5 12h14M12 5l7 7-7 7',
+  wallet: 'M21 12V7H5a2 2 0 0 1 0-4h14v4M3 5v14a2 2 0 0 0 2 2h16v-5M18 12a2 2 0 0 0 0 4h4v-4h-4z',
+  receipt: 'M4 2v20l3-2 3 2 3-2 3 2 3-2V2l-3 2-3-2-3 2-3-2-3 2zm4 6h8M8 12h8M8 16h5',
+  trend_down_red: 'M23 18l-9.5-9.5-5 5L1 6M17 18h6v-6',
+  calendar: 'M19 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zM16 2v4M8 2v4M3 10h18'
 }
 </script>
 

@@ -10,6 +10,7 @@ const Products = () => import('../views/ProductsView.vue')
 const Sales = () => import('../views/SalesView.vue')
 const Analytics = () => import('../views/AnalyticsView.vue')
 const Company = () => import('../views/CompanyView.vue')
+const Expenses = () => import('../views/ExpensesView.vue')
 
 const routes: RouteRecordRaw[] = [
   { path: '/login', component: Login, meta: { guest: true } },
@@ -24,6 +25,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'dashboard', component: Dashboard, meta: { roles: ['admin','manager','user'] } },
       { path: 'products', component: Products, meta: { roles: ['admin','manager','user'] } },
       { path: 'sales',    component: Sales,    meta: { roles: ['admin','manager','user'] } },
+      { path: 'expenses', component: Expenses, meta: { roles: ['admin','manager'] } },
       { path: 'analytics',component: Analytics,meta: { roles: ['admin','manager'] } },
       { path: 'company',  component: Company,  meta: { roles: ['admin'] } }
     ]

@@ -15,8 +15,9 @@ const items = computed(() => {
     { to: '/products', label: 'Productos', icon: 'package' },
     { to: '/sales', label: 'Ventas', icon: 'cart' }
   ]
+  if (auth.canManage) base.push({ to: '/expenses',  label: 'Gastos',    icon: 'wallet' })
   if (auth.canManage) base.push({ to: '/analytics', label: 'Analítica', icon: 'chart' })
-  if (auth.isAdmin)   base.push({ to: '/company', label: 'Empresa', icon: 'user' })
+  if (auth.isAdmin)   base.push({ to: '/company',   label: 'Empresa',   icon: 'user' })
   return base
 })
 
