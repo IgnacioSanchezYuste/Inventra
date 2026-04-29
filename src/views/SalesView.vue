@@ -61,6 +61,16 @@ function addToCart(p: Product) {
 
 function inc(l: CartLine) { if (l.qty < l.stock) l.qty++; else toast.error(`Stock máximo: ${l.stock}`) }
 function dec(l: CartLine) { if (l.qty > 1) l.qty--; else removeLine(l) }
+function setQty(l: CartLine, e: Event) {
+  const raw = parseInt((e.target as HTMLInputElement).value, 10)
+  if (!raw || raw < 1) { l.qty = 1; return }
+  if (raw > l.stock) {
+    l.qty = l.stock
+    toast.error(`Stock máximo: ${l.stock}`)
+  } else {
+    l.qty = raw
+  }
+}
 function removeLine(l: CartLine) { cart.value = cart.value.filter(x => x !== l) }
 function clearCart() { cart.value = [] }
 
@@ -168,7 +178,14 @@ const totalFiltered = computed(() => filteredHistory.value.reduce((a, s) => a + 
           </div>
           <div class="qty-pill">
             <button class="icon" @click="dec(l)">−</button>
-            <span>{{ l.qty }}</span>
+            <input
+              type="number"
+              min="1"
+              :max="l.stock"
+              :value="l.qty"
+              @change="setQty(l, $event)"
+              class="qty-input"
+            />
             <button class="icon" @click="inc(l)">+</button>
           </div>
           <strong class="cl-total">{{ money(l.qty * l.unit_price) }}</strong>
@@ -340,6 +357,15 @@ const totalFiltered = computed(() => filteredHistory.value.reduce((a, s) => a + 
 }
 .qty-pill .icon:hover { background: var(--surface); color: var(--primary); }
 .qty-pill span { padding: 0 10px; font-weight: 600; font-size: 13px; min-width: 28px; text-align: center; }
+.qty-input {
+  width: 56px; padding: 2px 4px; margin: 0 4px;
+  border: none; background: transparent;
+  font-weight: 600; font-size: 13px; text-align: center;
+  -moz-appearance: textfield;
+}
+.qty-input::-webkit-outer-spin-button,
+.qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.qty-input:focus { box-shadow: none; outline: none; }
 
 .cart-foot {
   border-top: 1px solid var(--border);
